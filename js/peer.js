@@ -1,0 +1,96 @@
+var MyPeer = function () {
+  self = this;
+  var peer = new Peer({
+    key: 'bc027ba1-6d2d-4bdf-b011-9afbf95e1328',
+    debug: 1,
+    logFunction: function() {
+      var copy = Array.prototype.slice.call(arguments).join(' ');
+      console.log('peerのlog:', copy);
+    }
+  });
+  var connectedPeers = {};
+  var selfConn = '';
+  var tagObj = {};
+
+  //必須
+  window.onunload = window.onbeforeunload = function(e) {
+    if (!!peer && !peer.destroyed) {
+      peer.destroy();
+    }
+  };
+
+
+  // 初期接続
+  peer.on('open', function(id){
+    selfConn = id;
+  });
+  //新たに接続されたコネクションからデータを受け撮った時の処理
+  peer.on('connection', function(c){
+    c.on('data', function(data) {
+      self.reciveData(data);
+    });
+    c.on('error', function(err) { console.log(c); });
+    c.on('close', function() {
+      delete connectedPeers[c.peer];
+      destroyPlayer(c.peer);
+    });
+    connectedPeers[c.peer] = 1;
+  });
+  peer.listAllPeers(function(list){
+    if (!Array.isArray(list)) {
+      return 0;
+    }
+    for (var i in list) {
+      var requestedPeer = list[i];
+      if (!connectedPeers[requestedPeer]) {
+        var c = peer.connect(requestedPeer, {
+          label: 'tag',
+          serialization: 'none',
+          reliable: true,
+          metadata: {message: 'new client'}
+        });
+        c.on('open', function() {
+          c.on('data', function(data) {
+            self.reciveData(data);
+          });
+        });
+        c.on('error', function(err) {
+          console.log(err);
+        });
+
+        c.on('close', function() {
+          connectedPeers[this.peer] = 0;
+          destroyPlayer(this.peer);
+        });
+        connectedPeers[requestedPeer] = 1;
+      }
+    }
+  });
+
+  this.reciveData = function(data){
+    data = JSON.parse(data);
+console.log(data);
+    switch (data.type) {
+      case 'createBall':
+        createBall(data);
+        break;
+      case 'moveOtherPlayer':
+        moveOtherPlayer(data);
+        break;
+      default:
+    }
+  }
+  this.sendData = function(data){
+    for (var requestedPeer in connectedPeers) {
+      if (requestedPeer != selfConn && connectedPeers[requestedPeer] != 0) {
+        var conns = peer.connections[requestedPeer];
+        for (var i = 0, ii = conns.length; i < ii; i += 1) {
+          var c = conns[i];
+          if (c.open) {
+            c.send(JSON.stringify(data));
+          }
+        }
+      }
+    }
+  }
+}
