@@ -141,7 +141,7 @@
     this.update = function ( delta ) {
 
         if ( scope.enabled === false ) return;
-        sendSelfPotision(self.selfConn);
+        sendSelfPotision(MyPeer.selfConn);
         delta *= 0.1;
 
         inputVelocity.set(0,0,0);
