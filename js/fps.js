@@ -149,7 +149,12 @@ function initCannon(){
   sphereShape = new CANNON.Sphere(playerConfig.radius);
   sphereBody = new CANNON.Body({ mass: playerConfig.mass,material: playerMaterial});
   sphereBody.addShape(sphereShape);
-  sphereBody.position.set(0,2,0);
+
+  var x = (Math.random()-0.5)*20;
+  var y = (Math.random()+0.5)*20;
+
+  sphereBody.position.set(x,y,0);
+
   sphereBody.linearDamping = 0.9;
   world.addBody(sphereBody);
 

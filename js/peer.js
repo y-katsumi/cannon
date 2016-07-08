@@ -26,6 +26,9 @@ var MyPeer = function () {
   });
   //新たに接続されたコネクションからデータを受け撮った時の処理
   peer.on('connection', function(c){
+    if (c.label !== 'fps') {
+      c.disconnect();
+    }
     c.on('data', function(data) {
       self.reciveData(data);
     });
@@ -44,15 +47,15 @@ var MyPeer = function () {
       var requestedPeer = list[i];
       if (!connectedPeers[requestedPeer]) {
         var c = peer.connect(requestedPeer, {
-          label: 'tag',
+          label: 'fps',
           serialization: 'none',
-          reliable: true,
+          // reliable: true,
           metadata: {message: 'new client'}
         });
         c.on('open', function() {
-          c.on('data', function(data) {
-            self.reciveData(data);
-          });
+        });
+        c.on('data', function(data) {
+          self.reciveData(data);
         });
         c.on('error', function(err) {
           console.log(err);
