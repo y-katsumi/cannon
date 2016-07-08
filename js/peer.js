@@ -9,7 +9,7 @@ var MyPeer = function () {
     }
   });
   var connectedPeers = {};
-  var selfConn = '';
+  this.selfConn = '';
   var tagObj = {};
 
   //必須
@@ -22,10 +22,13 @@ var MyPeer = function () {
 
   // 初期接続
   peer.on('open', function(id){
-    selfConn = id;
+    self.selfConn = id;
   });
   //新たに接続されたコネクションからデータを受け撮った時の処理
   peer.on('connection', function(c){
+    if (c.label !== 'fps') {
+      c.disconnect();
+    }
     c.on('data', function(data) {
       self.reciveData(data);
     });
@@ -44,15 +47,15 @@ var MyPeer = function () {
       var requestedPeer = list[i];
       if (!connectedPeers[requestedPeer]) {
         var c = peer.connect(requestedPeer, {
-          label: 'tag',
+          label: 'fps',
           serialization: 'none',
-          reliable: true,
+          // reliable: true,
           metadata: {message: 'new client'}
         });
         c.on('open', function() {
-          c.on('data', function(data) {
-            self.reciveData(data);
-          });
+        });
+        c.on('data', function(data) {
+          self.reciveData(data);
         });
         c.on('error', function(err) {
           console.log(err);
@@ -69,7 +72,6 @@ var MyPeer = function () {
 
   this.reciveData = function(data){
     data = JSON.parse(data);
-console.log(data);
     switch (data.type) {
       case 'createBall':
         createBall(data);
@@ -82,7 +84,7 @@ console.log(data);
   }
   this.sendData = function(data){
     for (var requestedPeer in connectedPeers) {
-      if (requestedPeer != selfConn && connectedPeers[requestedPeer] != 0) {
+      if (requestedPeer != self.selfConn && connectedPeers[requestedPeer] != 0) {
         var conns = peer.connections[requestedPeer];
         for (var i = 0, ii = conns.length; i < ii; i += 1) {
           var c = conns[i];

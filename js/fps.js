@@ -1,3 +1,9 @@
+
+//Blenderのオブジェクトを読み込む
+loader = new THREE.JSONLoader();
+var obakeGeometry,ogakeMaterial;
+
+
 var others=[], otherMeshes=[];
 var sphereShape, sphereBody, world, physicsMaterial, walls=[], balls=[], ballMeshes=[], boxes=[], boxMeshes=[];
 
@@ -10,7 +16,7 @@ var instructions = document.getElementById( 'instructions' );
 
 var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 
-var playerConfig = {mass:1, radius: 0.3};
+var playerConfig = {mass:0.5, radius: 0.6};
 var MyPeer = new MyPeer();
 var groundMaterial, boxMaterial, ballMaterial, playerMaterial;
 
@@ -143,7 +149,12 @@ function initCannon(){
   sphereShape = new CANNON.Sphere(playerConfig.radius);
   sphereBody = new CANNON.Body({ mass: playerConfig.mass,material: playerMaterial});
   sphereBody.addShape(sphereShape);
-  sphereBody.position.set(0,2,0);
+
+  var x = (Math.random()-0.5)*20;
+  var y = (Math.random()+0.5)*20;
+
+  sphereBody.position.set(x,y,0);
+
   sphereBody.linearDamping = 0.9;
   world.addBody(sphereBody);
 
@@ -181,19 +192,19 @@ function init() {
   camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog( 0x000000, 0, 500 );
+  scene.fog = new THREE.Fog( 0xaaaaaa, 0, 500 );
 
-  var ambient = new THREE.AmbientLight( 0x111111 );
+  var ambient = new THREE.AmbientLight( 0x555555 );
   scene.add( ambient );
 
-  light = new THREE.SpotLight( 0xffffff );
-  light.position.set( 10, 30, 20 );
+  light = new THREE.SpotLight( 0xaaaaaa );
+  light.position.set( 0, 50, 10 );
   light.target.position.set( 0, 0, 0 );
   if(true){
       light.castShadow = true;
 
       light.shadowCameraNear = 20;
-      light.shadowCameraFar = 50;//camera.far;
+      light.shadowCameraFar = 60;//camera.far;
       light.shadowCameraFov = 40;
 
       light.shadowMapBias = 0.1;
@@ -215,6 +226,7 @@ function init() {
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
 
   material = new THREE.MeshLambertMaterial( { color: 0xdddddd } );
+  ballColor = new THREE.MeshLambertMaterial( { color: 0x91CCFC } );
 
   mesh = new THREE.Mesh( geometry, material );
   mesh.castShadow = true;
@@ -313,8 +325,16 @@ function animate() {
       }
 
       for(var id in others){
-          otherMeshes[id].position.copy(others[id].position);
-          otherMeshes[id].quaternion.copy(others[id].quaternion);
+        otherMeshes[id].last_frame = otherMeshes[id].current_frame;
+        otherMeshes[id].current_frame++;
+        if (30 <= otherMeshes[id].current_frame) {
+          otherMeshes[id].current_frame = 0;
+        }
+        otherMeshes[id].morphTargetInfluences[otherMeshes[id].last_frame] = 0;
+        otherMeshes[id].morphTargetInfluences[otherMeshes[id].current_frame] = 1;
+
+        otherMeshes[id].position.copy(others[id].position);
+        otherMeshes[id].quaternion.copy(others[id].quaternion);
       }
   }
 
@@ -324,7 +344,7 @@ function animate() {
 
 }
 
-var ballShape = new CANNON.Sphere(0.2);
+var ballShape = new CANNON.Sphere(0.1);
 var ballGeometry = new THREE.SphereGeometry(ballShape.radius, 32, 32);
 var shootDirection = new THREE.Vector3();
 var shootVelo = 15;
@@ -350,9 +370,9 @@ function createBall(data){
   var x = data.position.x;
   var y = data.position.y;
   var z = data.position.z;
-  var ballBody = new CANNON.Body({ mass: 1, material: ballMaterial});
+  var ballBody = new CANNON.Body({ mass: 2, material: ballMaterial});
   ballBody.addShape(ballShape);
-  var ballMesh = new THREE.Mesh( ballGeometry, material );
+  var ballMesh = new THREE.Mesh( ballGeometry, ballColor );
   world.addBody(ballBody);
   scene.add(ballMesh);
   ballMesh.castShadow = true;
@@ -366,10 +386,14 @@ function createBall(data){
     getShootDir(shootDirection, data);
     var vel = shootDirection;
   }
+
   ballBody.velocity.set(  vel.x * shootVelo,
-                          vel.y * shootVelo,
+                          vel.y * shootVelo + 5,
                           vel.z * shootVelo);
 
+  // ballBody.initVelocity.set(0,1000,0);
+  // ballBody.angularDamping = 0.00001;
+// console.log(ballBody.force);
   // Move the ball outside the player sphere
   x += vel.x * (data.radius*1.02 + ballShape.radius);
   y += vel.y * (data.radius*1.02 + ballShape.radius);
@@ -386,15 +410,26 @@ function sendSelfPotision(peerId){
   });
 }
 function moveOtherPlayer(data){
+  if (data.peerId === undefined) {
+    return false;
+  }
   if (others[data.peerId] === undefined) {
     var ballBody = new CANNON.Body({ mass: playerConfig.mass,material: playerConfig.Material});
     ballBody.addShape(sphereShape);
-    var ballMesh = new THREE.Mesh( playerConfig.geometry, playerConfig.mesh );
     world.addBody(ballBody);
-    scene.add(ballMesh);
+
+
+    //モーフアニメーションメッシュ生成
+    var obakeMesh = new THREE.MorphAnimMesh(obakeGeometry, new THREE.MeshFaceMaterial(ogakeMaterial));
+    obakeMesh.scale.set( 0.3, 0.3, 0.3 );
+    scene.add(obakeMesh);
+
+    otherMeshes[data.peerId] = obakeMesh;
+    otherMeshes[data.peerId].current_frame = 1;
+
     others[data.peerId] = ballBody;
-    otherMeshes[data.peerId] = ballMesh;
   }
+
   var x = data.position.x;
   var y = data.position.y;
   var z = data.position.z;
@@ -408,3 +443,12 @@ function destroyPlayer(peerId){
   delete otherMeshes[peerId];
   delete others[peerId];
 }
+
+loader.load( 'json/obake3d.json', function ( geometry, materials ) { //第１引数はジオメトリー、第２引数はマテリアルが自動的に取得）
+  //全てのマテリアルのモーフターゲットの値をtrueにする
+  for (var i = 0, l = materials.length; i < l; i++) {
+       materials[i].morphTargets = true;
+  }
+  obakeGeometry = geometry;
+  ogakeMaterial = materials;
+});
