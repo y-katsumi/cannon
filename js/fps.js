@@ -3,7 +3,7 @@
 loader = new THREE.JSONLoader();
 var obakeGeometry,ogakeMaterial;
 
-
+var start_flag = false;
 var others=[], otherMeshes=[];
 var sphereShape, sphereBody, world, physicsMaterial, walls=[], balls=[], ballMeshes=[], boxes=[], boxMeshes=[];
 
@@ -153,7 +153,7 @@ function initCannon(){
   var x = (Math.random()-0.5)*20;
   var y = (Math.random()+0.5)*20;
 
-  sphereBody.position.set(x,y,0);
+  sphereBody.position.set(x,2,0);
 
   sphereBody.linearDamping = 0.9;
   world.addBody(sphereBody);
@@ -173,8 +173,9 @@ function initCannon(){
   world.addContactMaterial(selfGround);
   var selfGround = new CANNON.ContactMaterial(groundMaterial, ballMaterial, {
     friction: 0,
-    restitution: 10
+    restitution: 0.9
   });
+  world.addContactMaterial(selfGround);
   var selfGround = new CANNON.ContactMaterial(ballMaterial, ballMaterial, {
     friction: 1,
     restitution: 3
@@ -249,7 +250,7 @@ function init() {
   var boxGeometry = new THREE.BoxGeometry(halfExtents.x*2,halfExtents.y*2,halfExtents.z*2);
   for(var i=0; i<7; i++){
       var x = (Math.random()-0.5)*20;
-      var y = 1 + (Math.random()-0.5)*1;
+      var y = (Math.random()-0.5)*1;
       var z = (Math.random()-0.5)*20;
       var boxBody = new CANNON.Body({ mass: 5, material: boxMaterial});
       boxBody.addShape(boxShape);
@@ -309,7 +310,7 @@ function onWindowResize() {
 var dt = 1/60;
 function animate() {
   requestAnimationFrame( animate );
-  if(controls.enabled){
+  if(controls.enabled || start_flag){
       world.step(dt);
 
       // Update ball positions
@@ -332,9 +333,6 @@ function animate() {
         }
         otherMeshes[id].morphTargetInfluences[otherMeshes[id].last_frame] = 0;
         otherMeshes[id].morphTargetInfluences[otherMeshes[id].current_frame] = 1;
-
-        otherMeshes[id].position.copy(others[id].position);
-        otherMeshes[id].quaternion.copy(others[id].quaternion);
       }
   }
 
@@ -367,6 +365,7 @@ window.addEventListener("click",function(e){
   });
 });
 function createBall(data){
+console.log(controls);
   var x = data.position.x;
   var y = data.position.y;
   var z = data.position.z;
@@ -407,6 +406,8 @@ function sendSelfPotision(peerId){
     type: 'moveOtherPlayer'
     ,position: sphereBody.position
     ,peerId: peerId
+    ,rotate_x: controls.rotate_x
+    ,rotate_y: controls.rotate_y
   });
 }
 function moveOtherPlayer(data){
@@ -435,7 +436,10 @@ function moveOtherPlayer(data){
   var z = data.position.z;
 
   others[data.peerId].position.set(x,y,z);
-  otherMeshes[data.peerId].position.set(x,y,z);
+  otherMeshes[data.peerId].position.copy(others[data.peerId].position);
+
+  otherMeshes[data.peerId].rotation.x = data.rotate_x;
+  otherMeshes[data.peerId].rotation.y = 1 - data.rotate_y;
 }
 function destroyPlayer(peerId){
   world.removeBody(others[peerId]);
