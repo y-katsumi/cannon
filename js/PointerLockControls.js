@@ -8,6 +8,8 @@
     var velocityFactor = 0.2;
     var jumpVelocity = 20;
     var scope = this;
+    this.rotate_x = 0;
+    this.rotate_y = 0;
 
     var pitchObject = new THREE.Object3D();
     pitchObject.add( camera );
@@ -57,6 +59,8 @@
         pitchObject.rotation.x -= movementY * 0.002;
 
         pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+        scope.rotate_x = pitchObject.rotation.x;
+        scope.rotate_y = yawObject.rotation.y;
     };
 
     var onKeyDown = function ( event ) {
@@ -142,6 +146,7 @@
 
         if ( scope.enabled === false ) return;
         sendSelfPotision(MyPeer.selfConn);
+        start_flag = true;
         delta *= 0.1;
 
         inputVelocity.set(0,0,0);
